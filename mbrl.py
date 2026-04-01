@@ -29,7 +29,7 @@ class ActionRepeat(gym.Wrapper):
                 break
         return obs, total_reward, terminated, truncated, info
 
-def collect_episode(env, world_model, actor, device, iteration, data_dir="data/online_rl", is_eval=False):
+def collect_episode(env, world_model, actor, device, iteration, data_dir="data/mbrl", is_eval=False):
     obs, _ = env.reset()
     done = False
     
@@ -84,7 +84,7 @@ def collect_episode(env, world_model, actor, device, iteration, data_dir="data/o
     
     return total_reward
 
-def collect_episode_random(env, data_dir="data/online_rl"):
+def collect_episode_random(env, data_dir="data/mbrl"):
     obs, _ = env.reset()
     done = False
     episode_obs, episode_act, episode_rew, episode_done = [], [], [], []
@@ -146,14 +146,14 @@ if __name__ == "__main__":
     target_critic = Critic(latent_dim=2560).to(device)
     target_critic.load_state_dict(critic.state_dict())
 
-    os.makedirs("data/online_rl", exist_ok=True)
-    if len(os.listdir("data/online_rl")) < 50:
+    os.makedirs("data/mbrl", exist_ok=True)
+    if len(os.listdir("data/mbrl")) < 50:
         print("시드 데이터 수집 중...")
         for _ in tqdm(range(50), desc="Random Seed"):
-            collect_episode_random(env, data_dir="data/online_rl")
+            collect_episode_random(env, data_dir="data/mbrl")
 
     # 배치 사이즈를 32
-    buffer = ReplayBuffer("data/online_rl", seq_len=50, batch_size=32)
+    buffer = ReplayBuffer("data/mbrl", seq_len=50, batch_size=32)
 
     print("\nMBRL start")
     global_step = 0
