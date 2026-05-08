@@ -34,7 +34,7 @@ class Actor(nn.Module):
         mu = mu * self.mean_scale
         
         std = self.std_head(x)
-        std = F.softplus(std) + self.min_std
+        std = F.softplus(std + 5.0) + self.min_std # 초기 탐험 극대화
         
         dist = Normal(mu, std)
         dist = TransformedDistribution(dist, TanhTransform(cache_size=1))

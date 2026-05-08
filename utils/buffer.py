@@ -44,7 +44,7 @@ class ReplayBuffer:
 
     def _sample_sequence(self):
         if not self.episodes:
-            raise ValueError("버퍼에 데이터가 없습니다!")
+            raise ValueError("버퍼에 데이터가 없습니다")
             
         ep = random.choice(self.episodes)
         length = len(ep['obs'])
@@ -80,8 +80,6 @@ class ReplayBuffer:
             done_batch.append(d)
             
         obs_tensor = torch.FloatTensor(np.array(obs_batch)).permute(0, 1, 4, 2, 3)
-        
-        # 디코더에서 Sigmoid를 뺐으므로 [-0.5, 0.5]로 맞춤
         obs_tensor = obs_tensor / 255.0 - 0.5
         
         act_tensor = torch.FloatTensor(np.array(act_batch))

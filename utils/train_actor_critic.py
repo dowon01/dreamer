@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 
-HORIZON = 8           # 상상 미래 길이 (원본 논문 권장치 15)
+HORIZON = 15             # 상상 미래 길이
 GAMMA = 0.997            # 미래 보상 할인율
 LAMBDA = 0.95            # Lambda-return 계수
 ENTROPY_COEFF = 1e-4     # 탐험을 위한 엔트로피 가중치
@@ -64,7 +64,9 @@ def train_actor_critic(world_model, actor, critic, target_critic, actor_opt, cri
     imag_reward_dist = world_model.predict_reward(imag_latents[:-1])
     imag_rewards = imag_reward_dist.mean
     
-    imag_continues = torch.ones_like(imag_rewards)
+    imag_continue_dist = world_model.predict_continue(imag_latents[:-1])
+    # Bernoulli 분포의 mean값은 곧 "살아남을 확률(0~1)"을 의미
+    imag_continues = imag_continue_dist.mean
 
     with torch.no_grad():
         imag_values_target_dist = target_critic(imag_latents[1:])

@@ -2,3 +2,5 @@
 **/*.npz
 **/*.pth
 .DS_Store
+/result/
+/runs/

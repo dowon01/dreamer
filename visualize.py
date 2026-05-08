@@ -6,11 +6,11 @@ from models.world_model import WorldModel
 from utils.buffer import ReplayBuffer
 
 def visualize_reconstruction(model_path, data_dir="data"):
-    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     # 1. 모델 로드
     world_model = WorldModel().to(device)
-    world_model.load_state_dict(torch.load(model_path, map_location={'cpu' : 'mps'}))
+    world_model.load_state_dict(torch.load(model_path, map_location={'cpu' : 'cuda'}))
     world_model.eval()
 
     # 2. 데이터 샘플링 (검증 데이터셋에서)

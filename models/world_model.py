@@ -129,7 +129,8 @@ class ContinueModel(nn.Module):
 
     def forward(self, latent):
         logits = self.net(latent)
-        return Bernoulli(logits=logits)
+        dist = Bernoulli(logits=logits)
+        return Independent(dist, 1)
 
 # ==========================================
 # 4. 통합 World Model

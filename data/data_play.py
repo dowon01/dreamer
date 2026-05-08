@@ -16,10 +16,8 @@ def get_action_from_keyboard():
     return action
 
 def collect_expert_data(total_episodes=20):
-    # 직접 보기 위해 "human" 모드로 생성
     env = make_env(render_mode="human")
     pygame.init()
-    # pygame 창은 입력만 받기 위해 작게 띄움
     pygame.display.set_mode((100, 100)) 
     
     save_dir = "data"
@@ -33,13 +31,11 @@ def collect_expert_data(total_episodes=20):
         print(f"Episode {eps+1} 시작! 'CarRacing' 창을 클릭하고 방향키로 운전하세요.")
 
         while not done:
-            # pygame 이벤트를 체크해야 키 입력이 먹힘
             pygame.event.pump()
             
             action = get_action_from_keyboard()
             next_obs, reward, done, info = env.step(action)
             
-            # env.render()는 "human" 모드일 때 자동으로 창을 업데이트
             
             episode_data['obs'].append(obs)
             episode_data['action'].append(action)
@@ -48,7 +44,6 @@ def collect_expert_data(total_episodes=20):
             
             obs = next_obs
 
-        # 데이터 저장
         np.savez(f"{save_dir}/eps_{eps+1}.npz", **episode_data)
         print(f"Episode {eps+1} 완료!")
 

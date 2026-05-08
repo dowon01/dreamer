@@ -2,8 +2,7 @@ import gymnasium as gym
 import torch
 import torch.nn.functional as F
 import numpy as np
-import pygame    
-import imageio    
+import imageio
 import os         
 from models.world_model import WorldModel
 from models.actor_critic import Actor
@@ -31,7 +30,6 @@ def evaluate():
     world_model = WorldModel().to(device)
     actor = Actor(latent_dim=2560).to(device) 
     
-    # 최신 체크포인트 로드
     world_model.load_state_dict(torch.load("output/wm_iter_10000.pth", map_location=device))
     actor.load_state_dict(torch.load("output/actor_iter_10000.pth", map_location=device))
     
@@ -46,19 +44,11 @@ def evaluate():
     print("실전 주행 시작")
     
     total_eval_reward = 0.0
-    
-    frames = []
-    pygame.init()
-    screen = pygame.display.set_mode((1200, 800))
-    pygame.display.set_caption("Dreamer Eval (WSL Safe)")
+    frames = [] # 비디오 프레임을 담을 빈 상자
 
     with torch.no_grad():
         while True:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pass
-
-            # 관측값 정규화 ([-0.5, 0.5] 범위 맞추기)
+            # 관측값 정규화
             obs_tensor = torch.FloatTensor(obs.copy()).permute(2, 0, 1).unsqueeze(0).to(device) / 255.0
             obs_tensor = F.interpolate(obs_tensor, size=(64, 64), mode='bilinear', align_corners=False)
             obs_tensor = obs_tensor - 0.5
@@ -73,9 +63,9 @@ def evaluate():
             action_np = action_tensor.cpu().numpy()[0]
             
             env_action = np.array([
-                action_np[0], # Steering: [-1, 1]
-                action_np[1], # Gas: [-1, 1] 
-                action_np[2]  # Brake: [-1, 1] 
+                action_np[0], # Steering
+                action_np[1], # Gas
+                action_np[2]  # Brake
             ])
             env_action = np.clip(env_action, [-1.0, 0.0, 0.0], [1.0, 1.0, 1.0])
             
@@ -83,16 +73,10 @@ def evaluate():
             obs, reward, terminated, truncated, _ = env.step(env_action)
             total_eval_reward += reward
             
-            # 화면에 주행 영상 띄우기 & 프레임 수집
+            # 프레임은 수집
             frame = env.render()
             frames.append(frame)
             
-            surf = pygame.surfarray.make_surface(np.swapaxes(frame, 0, 1))
-            surf = pygame.transform.scale(surf, (1200, 800))
-            screen.blit(surf, (0, 0))
-            pygame.display.update()
-            
-            # 다음 스텝을 위해 prev_action은 신경망이 뱉은 원본 텐서를 줘야 함
             prev_h, prev_z, prev_action = h, z, action_tensor
 
             print(f"Action -> Steering: {env_action[0]:.2f}, Gas: {env_action[1]:.2f}, Brake: {env_action[2]:.2f} | Reward: {reward:.2f}")
@@ -102,13 +86,11 @@ def evaluate():
                 break
 
     env.close()
-    pygame.quit()
     
     print("\n비디오 파일 생성 중...")
     os.makedirs("videos", exist_ok=True)
     video_path = "videos/eval_run.mp4"
-    
-    # ActionRepeat이 4이므로, 원본 60fps / 4 = 15fps가 실제 주행 속도
+
     imageio.mimsave(video_path, frames, fps=15)
     print(f"저장 완료! 파일 위치: {video_path}")
 

@@ -3,13 +3,12 @@ import torch.nn.functional as F
 
 FREE_BITS = 0.1         # 최소 정보량 하한선
 OBS_WEIGHT = 10.0       # 시야를 선명하게 만들기 위한 강력한 압박
-KL_ALPHA = 0.8           # KL Balancing 비율 (Prior 80%, Posterior 20%)
+KL_ALPHA = 0.8          # KL Balancing 비율 (Prior 80%, Posterior 20%)
 
 # ==========================================
 # 유틸리티 함수
 # ==========================================
 def kl_balancing_categorical(post_logits, prior_logits):
-    """Prior가 80%의 힘으로 쫓아가고, Posterior가 20%만 양보하는 완벽한 균형"""
     post_probs_det = F.softmax(post_logits.detach(), dim=-1)
     prior_probs = F.softmax(prior_logits, dim=-1)
     kl_prior = post_probs_det * (torch.log(post_probs_det + 1e-8) - torch.log(prior_probs + 1e-8))
@@ -23,7 +22,7 @@ def kl_balancing_categorical(post_logits, prior_logits):
     return KL_ALPHA * loss_prior + (1 - KL_ALPHA) * loss_post
 
 # ==========================================
-# World Model 학습 (눈 뜨기)
+# World Model 학습
 # ==========================================
 def train_world_model(world_model, optimizer, batch, device, is_train=True):
     obs, action, reward, done = [x.to(device) for x in batch]
@@ -50,12 +49,13 @@ def train_world_model(world_model, optimizer, batch, device, is_train=True):
     loss_obs = -(log_prob_obs * curve_weight).mean() / (C * H * W)
 
     # 2. 보상 및 종료 예측 Loss
-    # 이전 시간(t-1)의 잠재 상태로 현재(t)를 예측하므로 1: 부터 슬라이싱
     reward_dist = world_model.predict_reward(latent[:, 1:])
-    loss_reward = -reward_dist.log_prob(reward[:, 1:]).mean()
+    true_reward = reward[:, 1:].view(B, T-1, 1) 
+    loss_reward = -reward_dist.log_prob(true_reward).mean()
 
     continue_dist = world_model.predict_continue(latent[:, 1:])
-    loss_continue = -continue_dist.log_prob(1.0 - done[:, 1:]).mean() * 5.0
+    true_continue = (1.0 - done[:, 1:].float()).view(B, T-1, 1)
+    loss_continue = -continue_dist.log_prob(true_continue).mean() * 5.0
     
     # 3. KL Loss
     post_dist = post_logits.view(B, T, 64, 32)[:, 1:]
