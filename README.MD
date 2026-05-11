@@ -20,5 +20,4 @@ Actor-Critic Network: World Model이 상상한 가상의 궤적 속에서 Actor 
 
 ### Result
 
-<video src="./videos/eval_run_10000.mp4" controls="controls" width="800">
-</video>
+/home/ehdnjs/dev/dreamer/videos/eval_run_10000.mp4
