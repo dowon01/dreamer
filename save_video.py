@@ -30,8 +30,8 @@ def evaluate():
     world_model = WorldModel().to(device)
     actor = Actor(latent_dim=2560).to(device) 
     
-    world_model.load_state_dict(torch.load("output/wm_iter_10000.pth", map_location=device))
-    actor.load_state_dict(torch.load("output/actor_iter_10000.pth", map_location=device))
+    world_model.load_state_dict(torch.load("output/wm_iter_9950.pth", map_location=device))
+    actor.load_state_dict(torch.load("output/actor_iter_9950.pth", map_location=device))
     
     world_model.eval()
     actor.eval()
@@ -89,7 +89,7 @@ def evaluate():
     
     print("\n비디오 파일 생성 중...")
     os.makedirs("videos", exist_ok=True)
-    video_path = "videos/eval_run.mp4"
+    video_path = "videos/eval_run.gif"
 
     imageio.mimsave(video_path, frames, fps=15)
     print(f"저장 완료! 파일 위치: {video_path}")
