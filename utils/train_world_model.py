@@ -49,6 +49,8 @@ def train_world_model(world_model, optimizer, batch, device, is_train=True):
     loss_obs = -(log_prob_obs * curve_weight).mean() / (C * H * W)
 
     # 2. 보상 및 종료 예측 Loss
+    # latent[t]는 action[t]를 실행해 obs[t]에 도달한 상태 -> reward[t], done[t]를 예측
+    # (t=0은 이전 문맥 없이 시작하므로 제외)
     reward_dist = world_model.predict_reward(latent[:, 1:])
     true_reward = reward[:, 1:].view(B, T-1, 1) 
     loss_reward = -reward_dist.log_prob(true_reward).mean()
@@ -58,8 +60,9 @@ def train_world_model(world_model, optimizer, batch, device, is_train=True):
     loss_continue = -continue_dist.log_prob(true_continue).mean() * 5.0
     
     # 3. KL Loss
-    post_dist = post_logits.view(B, T, 64, 32)[:, 1:]
-    prior_dist = prior_logits.view(B, T, 64, 32)[:, 1:]
+    stoch_dim, discrete_dim = world_model.rssm.stoch_dim, world_model.rssm.discrete_dim
+    post_dist = post_logits.view(B, T, stoch_dim, discrete_dim)[:, 1:]
+    prior_dist = prior_logits.view(B, T, stoch_dim, discrete_dim)[:, 1:]
     
     loss_kl_raw = kl_balancing_categorical(post_dist, prior_dist)
     loss_kl = torch.max(loss_kl_raw, torch.tensor(FREE_BITS).to(device))

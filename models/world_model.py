@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.distributions import OneHotCategorical, Normal, Independent, Bernoulli
 
 # ==========================================
@@ -147,13 +146,18 @@ class WorldModel(nn.Module):
         self.predict_reward = RewardModel(self.latent_dim)
         self.predict_continue = ContinueModel(self.latent_dim)
 
+    def initial_state(self, batch_size, device):
+        h = torch.zeros(batch_size, self.rssm.determ_dim, device=device)
+        z = torch.zeros(batch_size, self.rssm.stoch_dim * self.rssm.discrete_dim, device=device)
+        return h, z
+
     def forward(self, obs, action, prev_state=None):
+        # action[:, t]는 obs[:, t]에 도달하게 만든 직전 행동 (a_{t-1})
         device = obs.device
         B, T, C, H, W = obs.shape
 
         if prev_state is None:
-            prev_z = torch.zeros(B, self.rssm.stoch_dim * self.rssm.discrete_dim, device=device)
-            prev_h = torch.zeros(B, self.rssm.determ_dim, device=device)
+            prev_h, prev_z = self.initial_state(B, device)
         else:
             prev_h, prev_z = prev_state
 
@@ -162,11 +166,9 @@ class WorldModel(nn.Module):
 
         obs_embeds = self.encoder(obs.view(B*T, C, H, W)).view(B, T, -1)
 
-        shifted_action = torch.cat([torch.zeros(B, 1, action.shape[-1], device=device), action[:, :-1]], dim=1)
-
         for t in range(T):
             h, z, prior_logits, post_logits = self.rssm(
-                prev_z, shifted_action[:, t], prev_h, obs_embeds[:, t]
+                prev_z, action[:, t], prev_h, obs_embeds[:, t]
             )
             hs.append(h)
             zs.append(z)

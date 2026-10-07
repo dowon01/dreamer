@@ -2,5 +2,8 @@
 **/*.npz
 **/*.pth
 .DS_Store
-/result/
+/data/
+/output*/
 /runs/
+/logs/
+EXPERIMENTS.md

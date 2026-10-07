@@ -1,98 +1,11 @@
-import gymnasium as gym
-import torch
-import torch.nn.functional as F
-import numpy as np
-import imageio
-import os         
-from models.world_model import WorldModel
-from models.actor_critic import Actor
+import argparse
+from evaluate import evaluate
 
-class ActionRepeat(gym.Wrapper):
-    def __init__(self, env, repeat=4):
-        super().__init__(env)
-        self.repeat = repeat
-
-    def step(self, action):
-        total_reward = 0.0
-        for _ in range(self.repeat):
-            obs, reward, terminated, truncated, info = self.env.step(action)
-            total_reward += reward
-            if terminated or truncated:
-                break
-        return obs, total_reward, terminated, truncated, info
-
-def evaluate():
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
-    env = gym.make("CarRacing-v3", render_mode="rgb_array") 
-    env = ActionRepeat(env, repeat=4)
-    
-    world_model = WorldModel().to(device)
-    actor = Actor(latent_dim=2560).to(device) 
-    
-    world_model.load_state_dict(torch.load("output/wm_iter_9950.pth", map_location=device))
-    actor.load_state_dict(torch.load("output/actor_iter_9950.pth", map_location=device))
-    
-    world_model.eval()
-    actor.eval()
-
-    obs, _ = env.reset()
-    prev_h = torch.zeros(1, 512).to(device)
-    prev_z = torch.zeros(1, 2048).to(device)
-    prev_action = torch.zeros(1, 3).to(device)
-
-    print("실전 주행 시작")
-    
-    total_eval_reward = 0.0
-    frames = [] # 비디오 프레임을 담을 빈 상자
-
-    with torch.no_grad():
-        while True:
-            # 관측값 정규화
-            obs_tensor = torch.FloatTensor(obs.copy()).permute(2, 0, 1).unsqueeze(0).to(device) / 255.0
-            obs_tensor = F.interpolate(obs_tensor, size=(64, 64), mode='bilinear', align_corners=False)
-            obs_tensor = obs_tensor - 0.5
-            
-            # 현재 상태 업데이트
-            embed = world_model.encoder(obs_tensor)
-            h, z, _, _ = world_model.rssm(prev_z, prev_action, prev_h, embed)
-            
-            # 행동 결정
-            latent = torch.cat([h, z], dim=-1)
-            action_tensor = actor(latent, deterministic=True)
-            action_np = action_tensor.cpu().numpy()[0]
-            
-            env_action = np.array([
-                action_np[0], # Steering
-                action_np[1], # Gas
-                action_np[2]  # Brake
-            ])
-            env_action = np.clip(env_action, [-1.0, 0.0, 0.0], [1.0, 1.0, 1.0])
-            
-            # 환경 적용
-            obs, reward, terminated, truncated, _ = env.step(env_action)
-            total_eval_reward += reward
-            
-            # 프레임은 수집
-            frame = env.render()
-            frames.append(frame)
-            
-            prev_h, prev_z, prev_action = h, z, action_tensor
-
-            print(f"Action -> Steering: {env_action[0]:.2f}, Gas: {env_action[1]:.2f}, Brake: {env_action[2]:.2f} | Reward: {reward:.2f}")
-            
-            if terminated or truncated:
-                print(f"최종 점수: {total_eval_reward:.2f}")
-                break
-
-    env.close()
-    
-    print("\n비디오 파일 생성 중...")
-    os.makedirs("videos", exist_ok=True)
-    video_path = "videos/eval_run.gif"
-
-    imageio.mimsave(video_path, frames, fps=15)
-    print(f"저장 완료! 파일 위치: {video_path}")
-
+# 화면 없이 주행 영상(GIF)만 저장
 if __name__ == "__main__":
-    evaluate()
+    parser = argparse.ArgumentParser(description="학습된 에이전트의 주행 영상을 GIF로 저장")
+    parser.add_argument("--ckpt", default="latest", help="반복 횟수, 'latest', 'best'")
+    parser.add_argument("--output-dir", default="output")
+    parser.add_argument("--video", default="videos/eval_run.gif")
+    args = parser.parse_args()
+    evaluate(args.ckpt, args.output_dir, render=False, video_path=args.video)
